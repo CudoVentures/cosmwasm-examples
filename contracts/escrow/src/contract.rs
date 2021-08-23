@@ -1,7 +1,4 @@
-use cosmwasm_std::{
-    attr, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult,
-};
+use cosmwasm_std::{attr, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult, SubMsg, ReplyOn};
 
 use crate::error::ContractError;
 use crate::msg::{ArbiterResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -97,16 +94,22 @@ fn try_refund(
 // this is a helper to move the tokens, so the business logic is easy to read
 fn send_tokens(to_address: Addr, amount: Vec<Coin>, action: &str) -> Response {
     let attributes = vec![attr("action", action), attr("to", to_address.clone())];
+    let msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: to_address.into(),
+        amount,
+    });
 
-    Response {
-        submessages: vec![],
-        messages: vec![CosmosMsg::Bank(BankMsg::Send {
-            to_address: to_address.into(),
-            amount,
-        })],
-        data: None,
-        attributes,
-    }
+    let msgs = vec![SubMsg {
+        id: 0,
+        msg,
+        reply_on: ReplyOn::Never,
+        gas_limit: None,
+    }];
+    let mut rsp = Response::default();
+    rsp.messages = msgs;
+    rsp.attributes = attributes;
+
+    return rsp;
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
